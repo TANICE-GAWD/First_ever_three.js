@@ -2,8 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import './AeroLeague.css';
 import * as THREE from 'three';
 import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js';
-// 1. Import the Link component
-import { Link } from 'react-router-dom';
+
 
 const Animation3 = () => {
   const mountRef = useRef(null);
