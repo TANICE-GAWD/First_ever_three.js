@@ -14,7 +14,6 @@ const Animation3 = () => {
     const mountPoint = mountRef.current;
     let isMounted = true;
     let env; 
-
     const vertexShader = `
       attribute float size;
       attribute vec3 customColor;
