@@ -1,0 +1,127 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;800&display=swap');
+
+.animation-section {
+  position: relative;
+  width: 100%;
+  min-height: 70vh;
+  overflow: hidden;
+  z-index: 1;
+  background-color: #0f1419;
+}
+
+.animation-canvas {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  display: block;
+  top: 0;
+  left: 0;
+}
+
+
+@media (max-width: 768px) {
+  .animation-section {
+    min-height: 60vh;
+  }
+}
+
+@media (max-width: 480px) {
+  .animation-section {
+    min-height: 40vh;
+  }
+}
+
+
+.next-section {
+  width: 100%;
+ 
+  background-color: var(--bg-color, #0f1419);
+  background-image:
+    radial-gradient(var(--card-border, rgba(61, 61, 90, 0.7)) 1px, transparent 1px),
+    radial-gradient(var(--card-border, rgba(61, 61, 90, 0.7)) 1px, var(--bg-color, #0f1419) 1px);
+  background-size: 40px 40px;
+  background-position: 0 0, 20px 20px;
+  
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  text-align: center;
+  padding: 6rem 2rem;
+  overflow: hidden;
+}
+
+.next-section-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.next-section h1 {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 800;
+ 
+  font-size: clamp(1.9rem, 8vw, 4rem);
+  color: #ffffff;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  text-shadow: 0 0 15px rgba(0, 191, 255, 0.3);
+}
+
+.next-section p {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 400;
+  font-size: clamp(1rem, 2.5vw, 1.25rem);
+  line-height: 1.7;
+  max-width: 600px;
+  color: rgba(240, 240, 240, 0.85);
+  margin-bottom: 1rem;
+}
+
+
+.button-container {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.btn {
+  padding: 0.8rem 2.5rem;
+  border-radius: 50px;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.btn-primary {
+  background-color: #00bfff;
+  color: #0f1419;
+  border-color: #00bfff;
+}
+
+.btn-primary:hover {
+  background-color: #00a8e6;
+  transform: translateY(-3px);
+  box-shadow: 0 10px 20px rgba(0, 191, 255, 0.2);
+}
+
+.btn-secondary {
+  background-color: transparent;
+  color: #00bfff;
+  border-color: #00bfff;
+}
+
+.btn-secondary:hover {
+  background-color: #00bfff;
+  color: #0f1419;
+  transform: translateY(-3px);
+  box-shadow: 0 10px 20px rgba(0, 191, 255, 0.2);
+}
