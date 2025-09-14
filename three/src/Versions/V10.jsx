@@ -7,6 +7,7 @@ import { createNoise3D } from 'simplex-noise';
 const Animation10 = () => {
     const mountRef = useRef(null);
 
+    
     useEffect(() => {
         if (!mountRef.current) return;
 
