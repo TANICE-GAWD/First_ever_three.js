@@ -160,7 +160,7 @@ const Animation10 = () => {
 
                 const isMobile = window.innerWidth < 768;
                 this.data = {
-                    text: isMobile ? '' : ' \nBUILD. FLY. DOMINATE.',
+                    text: isMobile ? '' : ' \n67',
                     amount: isMobile ? 800 : 1500,
                     particleSize: 1.2,
                     textSize: isMobile ? 8 : 12,

@@ -132,7 +132,7 @@ const Animation5 = () => {
 
                 const isMobile = window.innerWidth < 768;
                 this.data = {
-                    text: isMobile ? 'TDC\n2025' : 'THAPAR DRONE CHALLENGE',
+                    text: isMobile ? '67\n' : '67',
                     amount: isMobile ? 500 : 1200,
                     particleSize: isMobile ? 1.2 : 1,
                     textSize: isMobile ? 16 : 14,
