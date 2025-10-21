@@ -14,7 +14,7 @@ import Animation10 from "./Versions/V10"
 function App() {
   const [selectedAnimation, setSelectedAnimation] = useState('Animation0');
 
-  // Map of animation names to components
+  
   const animations = {
     Animation0: Animation0,
     Animation1: Animation1,
@@ -29,7 +29,7 @@ function App() {
     Animation10: Animation10,
   };
 
-  // Death Version Component - renders all animations simultaneously in a scrollable layout
+  
   const DeathVersion = () => (
     <div style={{ 
       width: '100vw',
@@ -282,14 +282,14 @@ function App() {
     </div>
   );
 
-  // Get the current animation component or death version
+  
   const CurrentAnimation = selectedAnimation === 'Death version' ? DeathVersion : animations[selectedAnimation];
 
   const handleAnimationChange = (event) => {
     setSelectedAnimation(event.target.value);
   };
 
-  // Create options array with Death version at the end
+  
   const animationOptions = [...Object.keys(animations), 'Death version'];
 
   return (

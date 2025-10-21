@@ -546,7 +546,6 @@ export default function Animation0() {
         ref={videoRef}
         loop
         playsInline
-        muted
         crossOrigin="anonymous"
         style={{ display: 'none' }}
       />
