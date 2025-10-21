@@ -1,12 +1,12 @@
-import React, { useState, useRef, useMemo, useEffect } from 'react';
+import { useState, useRef, useMemo, useEffect } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 
-// --- Global Styles Component ---
-// This injects styles required for the animation to display correctly.
+
+
 const GlobalStyles = () => (
   <style jsx global>{`
-    /* A reset for the animation container */
+   
     .animation-container, .animation-container canvas {
       width: 100vw;
       height: 100vh;
@@ -20,21 +20,11 @@ const GlobalStyles = () => (
       background: #000;
       color: white;
     }
-    #fileInput {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      z-index: 10;
-      background-color: rgba(0,0,0,0.5);
-      color: white;
-      padding: 8px 12px;
-      border-radius: 8px;
-      cursor: pointer;
-    }
+
   `}</style>
 );
 
-// --- Particle Shader Definitions ---
+
 const vertexShader = `
   attribute float size;
   attribute vec3 customColor;
@@ -56,10 +46,10 @@ const fragmentShader = `
   }
 `;
 
-// --- Particle Logic Component ---
-// This is an internal component that contains the core logic for the particles.
+
+
 function VideoParticleEffect({ videoRef, videoSize }) {
-  // --- Constants & Refs ---
+  
   const PARTICLE_SIZE = 3;
   const DENSITY = 2;
 
@@ -67,7 +57,7 @@ function VideoParticleEffect({ videoRef, videoSize }) {
   const mouse = useRef({ x: -9999, y: -9999, isDown: false });
   const { size: viewportSize } = useThree();
 
-  // --- Memos for costly objects ---
+  
   const { sampler, ctx } = useMemo(() => {
     const sampler = document.createElement('canvas');
     const ctx = sampler.getContext('2d');
@@ -112,12 +102,12 @@ function VideoParticleEffect({ videoRef, videoSize }) {
         i++;
       }
     }
-    
+
     const data = { particleCount, positions, velocities, sizes, colors, rows, cols };
-    return [data, Date.now()]; // Return data and a unique key to force re-creation
+    return [data, Date.now()]; 
   }, [videoSize, sampler, ctx]);
 
-  // --- Event Listeners ---
+  
   useEffect(() => {
     const handleMouseMove = (e) => {
       mouse.current.x = (e.clientX / window.innerWidth) * 2 - 1;
@@ -140,7 +130,7 @@ function VideoParticleEffect({ videoRef, videoSize }) {
     };
   }, []);
 
-  // --- Render Loop ---
+  
   useFrame((state, delta) => {
     const video = videoRef.current;
     if (!pointsRef.current || !video || video.paused || video.readyState < 2) return;
@@ -165,42 +155,42 @@ function VideoParticleEffect({ videoRef, videoSize }) {
     const animColor = new THREE.Color();
 
     for (let i = 0; i < particleData.particleCount; i++) {
-        const i4 = i * 4;
-        const i3 = i * 3;
-        const r = imgData[i4] / 255;
-        const g = imgData[i4 + 1] / 255;
-        const b = imgData[i4 + 2] / 255;
-        
-        const brightness = 0.299 * r + 0.587 * g + 0.114 * b;
-        if (brightness > 0.5) {
-          COLOR_BRIGHT.toArray(colors, i3);
-        } else {
-          COLOR_DARK.toArray(colors, i3);
-        }
+      const i4 = i * 4;
+      const i3 = i * 3;
+      const r = imgData[i4] / 255;
+      const g = imgData[i4 + 1] / 255;
+      const b = imgData[i4 + 2] / 255;
 
-        particlePos.set(positions[i3], positions[i3 + 1], positions[i3 + 2]);
-        diff.subVectors(particlePos, worldMouse);
-        const dist = diff.length();
+      const brightness = 0.299 * r + 0.587 * g + 0.114 * b;
+      if (brightness > 0.5) {
+        COLOR_BRIGHT.toArray(colors, i3);
+      } else {
+        COLOR_DARK.toArray(colors, i3);
+      }
 
-        if (dist < 100) {
-          const force = (100 - dist) / 100 * 5;
-          velocities[i3] += diff.x / dist * force;
-          velocities[i3 + 1] += diff.y / dist * force;
-          COLOR_HOVER.toArray(colors, i3);
-        }
+      particlePos.set(positions[i3], positions[i3 + 1], positions[i3 + 2]);
+      diff.subVectors(particlePos, worldMouse);
+      const dist = diff.length();
 
-        if (mouse.current.isDown && dist < 150) {
-          const animHue = (0.5 + Math.sin(time * 5)) % 1;
-          animColor.setHSL(animHue, 1, 0.5);
-          animColor.toArray(colors, i3);
-        }
+      if (dist < 100) {
+        const force = (100 - dist) / 100 * 5;
+        velocities[i3] += diff.x / dist * force;
+        velocities[i3 + 1] += diff.y / dist * force;
+        COLOR_HOVER.toArray(colors, i3);
+      }
 
-        velocities[i3] *= 0.85;
-        velocities[i3 + 1] *= 0.85;
-        positions[i3] += velocities[i3];
-        positions[i3 + 1] += velocities[i3 + 1];
+      if (mouse.current.isDown && dist < 150) {
+        const animHue = (0.5 + Math.sin(time * 5)) % 1;
+        animColor.setHSL(animHue, 1, 0.5);
+        animColor.toArray(colors, i3);
+      }
 
-        sizes[i] = PARTICLE_SIZE + (100 - dist) / 10 * (dist < 100 ? 1 : 0);
+      velocities[i3] *= 0.85;
+      velocities[i3 + 1] *= 0.85;
+      positions[i3] += velocities[i3];
+      positions[i3 + 1] += velocities[i3 + 1];
+
+      sizes[i] = PARTICLE_SIZE + (100 - dist) / 10 * (dist < 100 ? 1 : 0);
     }
 
     pointsRef.current.geometry.attributes.position.needsUpdate = true;
@@ -229,31 +219,54 @@ function VideoParticleEffect({ videoRef, videoSize }) {
   );
 }
 
-// --- Main Exported Component ---
+
 export default function Animation0() {
   const videoRef = useRef();
   const [videoSize, setVideoSize] = useState(null);
 
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const url = URL.createObjectURL(file);
+  useEffect(() => {
     const video = videoRef.current;
-    video.src = url;
+    if (!video) return;
+
+    const handleLoadedMetadata = () => {
+      console.log('Video loaded:', video.videoWidth, 'x', video.videoHeight);
+      setVideoSize({ w: video.videoWidth, h: video.videoHeight });
+    };
+
+    const handleCanPlay = () => {
+      console.log('Video can play');
+      video.play().catch(err => console.error('Play failed:', err));
+    };
+
+    const handleError = (e) => {
+      console.error('Video error:', e);
+    };
+
+    video.addEventListener('loadedmetadata', handleLoadedMetadata);
+    video.addEventListener('canplay', handleCanPlay);
+    video.addEventListener('error', handleError);
+
+    video.src = '/assets/rickroll.mp4';
     video.load();
-    video.play();
-    video.addEventListener('loadedmetadata', () => {
-        setVideoSize({ w: video.videoWidth, h: video.videoHeight });
-      }, { once: true }
-    );
-  };
+
+    return () => {
+      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      video.removeEventListener('canplay', handleCanPlay);
+      video.removeEventListener('error', handleError);
+    };
+  }, []);
 
   return (
     <div className="animation-container">
       <GlobalStyles />
-      <input type="file" id="fileInput" accept="video/*" onChange={handleFileChange} />
-      <video id="video" ref={videoRef} loop playsInline style={{ display: 'none' }}></video>
+      <video
+        id="video"
+        ref={videoRef}
+        loop
+        playsInline
+        crossOrigin="anonymous"
+        style={{ display: 'none' }}
+      />
       <Canvas
         camera={{ fov: 45, near: 1, far: 5000, position: [0, 0, 800] }}
         dpr={Math.min(window.devicePixelRatio, 2)}
