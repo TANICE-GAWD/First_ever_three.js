@@ -79,7 +79,7 @@ function TextParticleEffect({ font, particleTexture, onClick }) {
 
   const isMobile = window.innerWidth < 768;
   const data = useMemo(() => ({
-    text: 'AWS was down. Click to See WHY',
+    text: 'AWS was down. Click to See WHY \n Volume Up',
     amount: isMobile ? 800 : 1500,
     particleSize: 1,
     textSize: isMobile ? 2 : 10,
