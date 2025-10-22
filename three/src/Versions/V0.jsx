@@ -77,17 +77,45 @@ function TextParticleEffect({ font, particleTexture, onClick }) {
 
   const colorChange = useMemo(() => new THREE.Color(), []);
 
-  const isMobile = window.innerWidth < 768;
-  const data = useMemo(() => ({
-    text: 'AWS was down. Click to See WHY \n Volume Up',
-    amount: isMobile ? 800 : 1500,
-    particleSize: 1,
-    textSize: isMobile ? 2 : 10,
-    area: 250,
-    ease: 0.05,
-  }), [isMobile]);
+  
+  const screenWidth = window.innerWidth;
+  const screenHeight = window.innerHeight;
+  const isMobile = screenWidth < 768;
+  const isTablet = screenWidth >= 768 && screenWidth < 1024;
+  const isSmallMobile = screenWidth < 480;
 
-  // Create text particles
+  const data = useMemo(() => {
+    let textSize, amount, area;
+
+    if (isSmallMobile) {
+      textSize = 1.5;
+      amount = 600;
+      area = 150;
+    } else if (isMobile) {
+      textSize = 2.5;
+      amount = 800;
+      area = 200;
+    } else if (isTablet) {
+      textSize = 6;
+      amount = 1200;
+      area = 220;
+    } else {
+      textSize = 10;
+      amount = 1500;
+      area = 250;
+    }
+
+    return {
+      text: isSmallMobile ? 'AWS was down\nClick to See WHY\nVolume Up' : 'AWS was down. Click to See WHY \n Volume Up',
+      amount,
+      particleSize: 1,
+      textSize,
+      area,
+      ease: 0.05,
+    };
+  }, [isSmallMobile, isMobile, isTablet]);
+
+  
   useEffect(() => {
     if (!font || !particleTexture) return;
 
@@ -137,34 +165,55 @@ function TextParticleEffect({ font, particleTexture, onClick }) {
     }
   }, [font, particleTexture, data, colorChange]);
 
-  // Mouse events
+  
   useEffect(() => {
     const handleMouseMove = (event) => {
       mouse.current.x = (event.clientX / window.innerWidth) * 2 - 1;
       mouse.current.y = -(event.clientY / window.innerHeight) * 2 + 1;
     };
 
+    const handleTouchMove = (event) => {
+      if (event.touches.length > 0) {
+        const touch = event.touches[0];
+        mouse.current.x = (touch.clientX / window.innerWidth) * 2 - 1;
+        mouse.current.y = -(touch.clientY / window.innerHeight) * 2 + 1;
+      }
+    };
+
     const handleClick = () => {
       onClick();
     };
 
+    const handleTouchEnd = (event) => {
+      event.preventDefault();
+      
+      onClick();
+    };
+
+    
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('click', handleClick);
+
+    
+    window.addEventListener('touchmove', handleTouchMove, { passive: false });
+    window.addEventListener('touchend', handleTouchEnd, { passive: false });
 
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('click', handleClick);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handleTouchEnd);
     };
   }, [onClick]);
 
-  // Animation loop
+  
   useFrame(() => {
     if (!pointsRef.current || !geometryCopyRef.current) return;
 
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(mouse.current, camera);
 
-    // Create invisible plane for raycasting
+    
     const planeGeometry = new THREE.PlaneGeometry(
       visibleWidthAtZDepth(100, camera),
       visibleHeightAtZDepth(100, camera)
@@ -192,7 +241,7 @@ function TextParticleEffect({ font, particleTexture, onClick }) {
         let py = pos.getY(i);
         let pz = pos.getZ(i);
 
-        // Set default color and size
+        
         colorChange.setHSL(0.5, 1, 1);
         colors.setXYZ(i, colorChange.r, colorChange.g, colorChange.b);
         size.array[i] = data.particleSize;
@@ -201,7 +250,7 @@ function TextParticleEffect({ font, particleTexture, onClick }) {
         let dy = my - py;
         const mouseDistance = distance(mx, my, px, py);
 
-        // Hover effect
+        
         if (mouseDistance < data.area) {
           const f = -data.area / (dx * dx + dy * dy);
 
@@ -229,7 +278,7 @@ function TextParticleEffect({ font, particleTexture, onClick }) {
         colors.needsUpdate = true;
         size.needsUpdate = true;
 
-        // Return to original position
+        
         px += (initX - px) * data.ease;
         py += (initY - py) * data.ease;
         pz += (initZ - pz) * data.ease;
@@ -277,13 +326,18 @@ function TextParticleEffect({ font, particleTexture, onClick }) {
 }
 
 function VideoParticleEffect({ videoRef, videoSize }) {
-
-  const PARTICLE_SIZE = 3;
-  const DENSITY = 2;
-
   const pointsRef = useRef();
   const mouse = useRef({ x: -9999, y: -9999, isDown: false });
   const { size: viewportSize } = useThree();
+
+  
+  const screenWidth = window.innerWidth;
+  const isMobile = screenWidth < 768;
+  const isTablet = screenWidth >= 768 && screenWidth < 1024;
+  const isSmallMobile = screenWidth < 480;
+
+  const PARTICLE_SIZE = isMobile ? 2 : 3;
+  const DENSITY = isSmallMobile ? 3 : isMobile ? 2.5 : 2;
 
 
   const { sampler, ctx } = useMemo(() => {
@@ -317,8 +371,17 @@ function VideoParticleEffect({ videoRef, videoSize }) {
 
     const initialColor = new THREE.Color().setHSL(0.5, 1, 1);
 
-    // Scale down the particles to fit the screen better
-    const scale = 0.2; // Reduce particle spread
+    
+    let scale;
+    if (isSmallMobile) {
+      scale = 0.15; 
+    } else if (isMobile) {
+      scale = 0.18; 
+    } else if (isTablet) {
+      scale = 0.2; 
+    } else {
+      scale = 0.25; 
+    }
     const halfW = cols / 2;
     const halfH = rows / 2;
     let i = 0;
@@ -344,20 +407,41 @@ function VideoParticleEffect({ videoRef, videoSize }) {
       mouse.current.x = (e.clientX / window.innerWidth) * 2 - 1;
       mouse.current.y = -(e.clientY / window.innerHeight) * 2 + 1;
     };
+
+    const handleTouchMove = (e) => {
+      if (e.touches.length > 0) {
+        const touch = e.touches[0];
+        mouse.current.x = (touch.clientX / window.innerWidth) * 2 - 1;
+        mouse.current.y = -(touch.clientY / window.innerHeight) * 2 + 1;
+      }
+    };
+
     const handleMouseLeave = () => { mouse.current.x = -9999; mouse.current.y = -9999; };
     const handleMouseDown = () => { mouse.current.isDown = true; };
     const handleMouseUp = () => { mouse.current.isDown = false; };
 
+    const handleTouchStart = () => { mouse.current.isDown = true; };
+    const handleTouchEnd = () => { mouse.current.isDown = false; };
+
+    
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseleave', handleMouseLeave);
     window.addEventListener('mousedown', handleMouseDown);
     window.addEventListener('mouseup', handleMouseUp);
+
+    
+    window.addEventListener('touchmove', handleTouchMove, { passive: true });
+    window.addEventListener('touchstart', handleTouchStart, { passive: true });
+    window.addEventListener('touchend', handleTouchEnd, { passive: true });
 
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseleave', handleMouseLeave);
       window.removeEventListener('mousedown', handleMouseDown);
       window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchstart', handleTouchStart);
+      window.removeEventListener('touchend', handleTouchEnd);
     };
   }, []);
 
@@ -374,9 +458,11 @@ function VideoParticleEffect({ videoRef, videoSize }) {
     const sizes = pointsRef.current.geometry.attributes.size.array;
     const colors = pointsRef.current.geometry.attributes.customColor.array;
 
+    
+    const mouseScale = isMobile ? 30 : 50;
     const worldMouse = new THREE.Vector3(
-      mouse.current.x * 50, // Scale down mouse interaction area
-      mouse.current.y * 50,
+      mouse.current.x * mouseScale,
+      mouse.current.y * mouseScale,
       0
     );
 
@@ -403,14 +489,19 @@ function VideoParticleEffect({ videoRef, videoSize }) {
       diff.subVectors(particlePos, worldMouse);
       const dist = diff.length();
 
-      if (dist < 10) { // Reduce interaction distance
-        const force = (10 - dist) / 10 * 0.5; // Reduce force
-        velocities[i3] += diff.x / dist * force;
-        velocities[i3 + 1] += diff.y / dist * force;
+      
+      const hoverDistance = isMobile ? 8 : 10;
+      const clickDistance = isMobile ? 12 : 15;
+      const force = isMobile ? 0.3 : 0.5;
+
+      if (dist < hoverDistance) {
+        const forceAmount = (hoverDistance - dist) / hoverDistance * force;
+        velocities[i3] += diff.x / dist * forceAmount;
+        velocities[i3 + 1] += diff.y / dist * forceAmount;
         COLOR_HOVER.toArray(colors, i3);
       }
 
-      if (mouse.current.isDown && dist < 15) { // Reduce click interaction distance
+      if (mouse.current.isDown && dist < clickDistance) {
         const animHue = (0.5 + Math.sin(time * 5)) % 1;
         animColor.setHSL(animHue, 1, 0.5);
         animColor.toArray(colors, i3);
@@ -421,7 +512,7 @@ function VideoParticleEffect({ videoRef, videoSize }) {
       positions[i3] += velocities[i3];
       positions[i3 + 1] += velocities[i3 + 1];
 
-      sizes[i] = PARTICLE_SIZE + (10 - dist) / 10 * (dist < 10 ? 1 : 0);
+      sizes[i] = PARTICLE_SIZE + (hoverDistance - dist) / hoverDistance * (dist < hoverDistance ? 1 : 0);
     }
 
     pointsRef.current.geometry.attributes.position.needsUpdate = true;
@@ -453,14 +544,22 @@ function VideoParticleEffect({ videoRef, videoSize }) {
 
 export default function Animation0() {
   const videoRef = useRef();
+  const fileInputRef = useRef();
   const [videoSize, setVideoSize] = useState(null);
-  const [showStartScreen, setShowStartScreen] = useState(true);
   const [videoLoaded, setVideoLoaded] = useState(false);
+  const [showStartScreen, setShowStartScreen] = useState(true);
   const [font, setFont] = useState(null);
   const [particleTexture, setParticleTexture] = useState(null);
+  const [isCustomVideo, setIsCustomVideo] = useState(false);
+  const [currentVideoUrl, setCurrentVideoUrl] = useState(null);
+
+  
+  const screenWidth = window.innerWidth;
+  const isMobile = screenWidth < 768;
+  const isSmallMobile = screenWidth < 480;
 
   useEffect(() => {
-    // Load font and particle texture
+    
     const fontLoader = new FontLoader();
     const textureLoader = new THREE.TextureLoader();
 
@@ -476,7 +575,11 @@ export default function Animation0() {
       (err) => console.log('An error happened during font loading', err)
     );
 
-    // Load video
+    
+    loadVideo('/assets/rickroll.mp4');
+  }, []);
+
+  const loadVideo = (src) => {
     const video = videoRef.current;
     if (!video) return;
 
@@ -490,54 +593,198 @@ export default function Animation0() {
       console.error('Video error:', e);
     };
 
+    
+    video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+    video.removeEventListener('error', handleError);
+
     video.addEventListener('loadedmetadata', handleLoadedMetadata);
     video.addEventListener('error', handleError);
 
-    video.src = '/assets/rickroll.mp4';
+    video.src = src;
     video.load();
+  };
 
-    return () => {
-      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
-      video.removeEventListener('error', handleError);
-    };
-  }, []);
-
-  const handleStartClick = () => {
+  const handleStartClick = async () => {
     if (!videoLoaded) return;
 
     const video = videoRef.current;
     setShowStartScreen(false);
 
-    // Start playing the video
-    video.play().catch(err => console.error('Play failed:', err));
+    try {
+      
+      if (video.readyState >= 2) {
+        await video.play();
+        console.log('Video started playing successfully');
+      } else {
+        
+        video.addEventListener('canplay', async () => {
+          try {
+            await video.play();
+            console.log('Video started playing after canplay event');
+          } catch (err) {
+            console.error('Play failed after canplay:', err);
+            
+            video.muted = true;
+            await video.play();
+            console.log('Video started playing muted as fallback');
+          }
+        }, { once: true });
+      }
+    } catch (err) {
+      console.error('Play failed:', err);
+      try {
+        
+        video.muted = true;
+        await video.play();
+        console.log('Video started playing muted as fallback');
+      } catch (mutedErr) {
+        console.error('Even muted playback failed:', mutedErr);
+      }
+    }
+  };
+
+  const handleFileUpload = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    
+    if (!file.type.startsWith('video/')) {
+      alert('Please select a valid video file (MP4, WebM, etc.)');
+      return;
+    }
+
+    
+    if (currentVideoUrl) {
+      URL.revokeObjectURL(currentVideoUrl);
+    }
+
+    
+    const url = URL.createObjectURL(file);
+    setCurrentVideoUrl(url);
+    setIsCustomVideo(true);
+
+    
+    loadVideo(url);
+    setShowStartScreen(false);
+
+    
+    setTimeout(async () => {
+      const video = videoRef.current;
+      if (video) {
+        try {
+          await video.play();
+          console.log('Custom video started playing');
+        } catch (err) {
+          console.error('Custom video play failed:', err);
+          
+          try {
+            video.muted = true;
+            await video.play();
+            console.log('Custom video started playing muted');
+          } catch (mutedErr) {
+            console.error('Even muted custom video failed:', mutedErr);
+          }
+        }
+      }
+    }, 100);
+  };
+
+  const resetToRickroll = () => {
+    
+    if (currentVideoUrl) {
+      URL.revokeObjectURL(currentVideoUrl);
+      setCurrentVideoUrl(null);
+    }
+
+    setIsCustomVideo(false);
+    setShowStartScreen(true);
+    loadVideo('/assets/rickroll.mp4');
+
+    
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   return (
     <div className="animation-container">
       <GlobalStyles />
 
-      {/* Rickroll Warning Message */}
+      {/* Video Upload Controls */}
+      <div style={{
+        position: 'absolute',
+        top: isMobile ? '10px' : '20px',
+        right: isMobile ? '10px' : '20px',
+        zIndex: 1000,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: isMobile ? '8px' : '10px'
+      }}>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="video/*"
+          onChange={handleFileUpload}
+          style={{
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            color: 'white',
+            border: '1px solid #555',
+            borderRadius: '4px',
+            padding: isMobile ? '6px 8px' : '8px 12px',
+            fontSize: isMobile ? '10px' : '12px',
+            fontFamily: 'Arial, sans-serif',
+            cursor: 'pointer',
+            width: isSmallMobile ? '120px' : 'auto'
+          }}
+        />
+
+        {isCustomVideo && (
+          <button
+            onClick={resetToRickroll}
+            style={{
+              backgroundColor: 'rgba(255, 69, 0, 0.9)',
+              color: 'white',
+              border: '1px solid #ff4500',
+              borderRadius: '4px',
+              padding: isMobile ? '6px 8px' : '8px 12px',
+              fontSize: isMobile ? '10px' : '12px',
+              fontFamily: 'Arial, sans-serif',
+              cursor: 'pointer',
+              fontWeight: 'bold',
+              width: isSmallMobile ? '120px' : 'auto'
+            }}
+          >
+            {isSmallMobile ? 'Reset' : 'Reset to Rickroll'}
+          </button>
+        )}
+      </div>
+
+      {/* Warning Message */}
       {!showStartScreen && (
         <div style={{
           position: 'absolute',
-          bottom: '20px',
+          bottom: isMobile ? '10px' : '20px',
           left: '50%',
           transform: 'translateX(-50%)',
           zIndex: 1000,
-          backgroundColor: 'rgba(255, 69, 0, 0.9)',
+          backgroundColor: isCustomVideo ? 'rgba(0, 100, 255, 0.9)' : 'rgba(255, 69, 0, 0.9)',
           color: 'white',
-          padding: '15px 25px',
-          borderRadius: '12px',
-          border: '2px solid #ff4500',
-          fontSize: '18px',
+          padding: isMobile ? '10px 15px' : '15px 25px',
+          borderRadius: isMobile ? '8px' : '12px',
+          border: isCustomVideo ? '2px solid #0064ff' : '2px solid #ff4500',
+          fontSize: isSmallMobile ? '12px' : isMobile ? '14px' : '16px',
           fontFamily: 'Arial, sans-serif',
           fontWeight: 'bold',
           textAlign: 'center',
-          boxShadow: '0 4px 20px rgba(255, 69, 0, 0.5)',
+          boxShadow: isCustomVideo ? '0 4px 20px rgba(0, 100, 255, 0.5)' : '0 4px 20px rgba(255, 69, 0, 0.5)',
           animation: 'pulse 2s infinite',
-          maxWidth: '90vw'
+          maxWidth: isMobile ? '95vw' : '90vw',
+          margin: isMobile ? '0 10px' : '0'
         }}>
-          ⚠️ Don't trust links or messages... GET RICKROLLED! 
+          {isCustomVideo
+            ? (isSmallMobile ? '🎬 Custom video playing!' : '🎬 Your custom video is now playing as particles!')
+            : (isSmallMobile ? '🚨 GET RICKROLLED! 🎵' : '🚨 Don\'t trust links or messages... GET RICKROLLED! 🎵')
+          }
         </div>
       )}
 
