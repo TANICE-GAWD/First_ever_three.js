@@ -72,12 +72,13 @@ const textFragmentShader = `
 function TextParticleEffect({ font, particleTexture, onClick }) {
   const pointsRef = useRef();
   const geometryCopyRef = useRef();
-  const mouse = useRef({ x: -200, y: 200 });
+  const mouse = useRef({ x: -200, y: 200, isDown: false });
   const { size: viewportSize, camera } = useThree();
 
   const colorChange = useMemo(() => new THREE.Color(), []);
+  const clickTime = useRef(0);
 
-  
+
   const screenWidth = window.innerWidth;
   const screenHeight = window.innerHeight;
   const isMobile = screenWidth < 768;
@@ -115,7 +116,7 @@ function TextParticleEffect({ font, particleTexture, onClick }) {
     };
   }, [isSmallMobile, isMobile, isTablet]);
 
-  
+
   useEffect(() => {
     if (!font || !particleTexture) return;
 
@@ -165,7 +166,7 @@ function TextParticleEffect({ font, particleTexture, onClick }) {
     }
   }, [font, particleTexture, data, colorChange]);
 
-  
+
   useEffect(() => {
     const handleMouseMove = (event) => {
       mouse.current.x = (event.clientX / window.innerWidth) * 2 - 1;
@@ -181,39 +182,62 @@ function TextParticleEffect({ font, particleTexture, onClick }) {
     };
 
     const handleClick = () => {
+      mouse.current.isDown = true;
+      clickTime.current = Date.now();
+      setTimeout(() => {
+        mouse.current.isDown = false;
+      }, 300);
       onClick();
+    };
+
+    const handleMouseDown = () => {
+      mouse.current.isDown = true;
+      clickTime.current = Date.now();
+    };
+
+    const handleMouseUp = () => {
+      mouse.current.isDown = false;
     };
 
     const handleTouchEnd = (event) => {
       event.preventDefault();
-      
+      mouse.current.isDown = true;
+      clickTime.current = Date.now();
+      setTimeout(() => {
+        mouse.current.isDown = false;
+      }, 300);
       onClick();
     };
 
-    
+
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('click', handleClick);
+    window.addEventListener('mousedown', handleMouseDown);
+    window.addEventListener('mouseup', handleMouseUp);
 
-    
+
     window.addEventListener('touchmove', handleTouchMove, { passive: false });
     window.addEventListener('touchend', handleTouchEnd, { passive: false });
 
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('click', handleClick);
+      window.removeEventListener('mousedown', handleMouseDown);
+      window.removeEventListener('mouseup', handleMouseUp);
       window.removeEventListener('touchmove', handleTouchMove);
       window.removeEventListener('touchend', handleTouchEnd);
     };
   }, [onClick]);
 
-  
-  useFrame(() => {
+
+  useFrame((state) => {
     if (!pointsRef.current || !geometryCopyRef.current) return;
 
+    const time = state.clock.getElapsedTime();
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(mouse.current, camera);
 
-    
+
     const planeGeometry = new THREE.PlaneGeometry(
       visibleWidthAtZDepth(100, camera),
       visibleHeightAtZDepth(100, camera)
@@ -232,6 +256,10 @@ function TextParticleEffect({ font, particleTexture, onClick }) {
       const mx = intersects[0].point.x;
       const my = intersects[0].point.y;
 
+      // Click effect timing
+      const timeSinceClick = Date.now() - clickTime.current;
+      const clickEffect = Math.max(0, 1 - timeSinceClick / 1000);
+
       for (let i = 0, l = pos.count; i < l; i++) {
         const initX = copy.getX(i);
         const initY = copy.getY(i);
@@ -241,47 +269,170 @@ function TextParticleEffect({ font, particleTexture, onClick }) {
         let py = pos.getY(i);
         let pz = pos.getZ(i);
 
-        
-        colorChange.setHSL(0.5, 1, 1);
+        // Base color with subtle animation
+        const baseHue = 0.6 + Math.sin(time * 0.5 + i * 0.01) * 0.1;
+        colorChange.setHSL(baseHue, 0.8, 0.9);
         colors.setXYZ(i, colorChange.r, colorChange.g, colorChange.b);
-        size.array[i] = data.particleSize;
+        size.array[i] = data.particleSize * (1 + Math.sin(time * 2 + i * 0.05) * 0.1);
 
         let dx = mx - px;
         let dy = my - py;
         const mouseDistance = distance(mx, my, px, py);
 
-        
+        // Enhanced hover effect
         if (mouseDistance < data.area) {
-          const f = -data.area / (dx * dx + dy * dy);
+          const normalizedDistance = mouseDistance / data.area;
+          const intensity = 1 - normalizedDistance;
 
-          if (i % 5 === 0) {
-            const t = Math.atan2(dy, dx);
-            px -= 0.03 * Math.cos(t);
-            py -= 0.03 * Math.sin(t);
-            colorChange.setHSL(0.15, 1.0, 0.5);
+          // Stronger repulsion force
+          const f = -data.area * intensity * intensity * 2;
+          const t = Math.atan2(dy, dx);
+
+          // Create ripple effect
+          const ripple = Math.sin(time * 8 - mouseDistance * 0.1) * intensity * 0.5;
+
+          if (i % 3 === 0) {
+            // Attract some particles
+            px += Math.cos(t) * f * 0.3 + ripple;
+            py += Math.sin(t) * f * 0.3 + ripple;
+
+            // Bright cyan hover color
+            colorChange.setHSL(0.5, 1.0, 0.8 + intensity * 0.2);
             colors.setXYZ(i, colorChange.r, colorChange.g, colorChange.b);
-            size.array[i] = data.particleSize / 1.2;
+            size.array[i] = data.particleSize * (2 + intensity * 2);
           } else {
-            const t = Math.atan2(dy, dx);
-            px += f * Math.cos(t);
-            py += f * Math.sin(t);
-            pos.setXYZ(i, px, py, pz);
-            size.array[i] = data.particleSize * 1.3;
-          }
-          if (px > initX + 10 || px < initX - 10 || py > initY + 10 || py < initY - 10) {
-            colorChange.setHSL(0.15, 1.0, 0.5);
+            // Repel other particles
+            px -= Math.cos(t) * f * 0.1;
+            py -= Math.sin(t) * f * 0.1;
+
+            // Orange hover color
+            colorChange.setHSL(0.1, 1.0, 0.7 + intensity * 0.3);
             colors.setXYZ(i, colorChange.r, colorChange.g, colorChange.b);
-            size.array[i] = data.particleSize / 1.8;
+            size.array[i] = data.particleSize * (1.5 + intensity * 1.5);
+          }
+
+          // Add Z-axis movement for depth
+          pz = initZ + Math.sin(time * 4 + i * 0.1) * intensity * 5;
+        }
+
+        // Realistic Black Hole with Accretion Disk
+        if (mouse.current.isDown || clickEffect > 0) {
+          const blackHoleRadius = data.area * 4;
+          if (mouseDistance < blackHoleRadius) {
+            const intensity = clickEffect * (1 - mouseDistance / blackHoleRadius);
+            
+            // Calculate angle to mouse (black hole center)
+            const angleToCenter = Math.atan2(dy, dx);
+            
+            // Create flat accretion disk - particles move primarily in horizontal plane
+            const diskHeight = Math.abs(dy); // Distance from horizontal plane
+            const diskRadius = Math.abs(dx); // Distance from center horizontally
+            
+            // Only affect particles that are roughly in the disk plane
+            const diskThickness = data.area * 0.6;
+            const inDiskPlane = diskHeight < diskThickness;
+            
+            if (inDiskPlane) {
+              // Orbital velocity for accretion disk (Keplerian motion)
+              const orbitalSpeed = Math.sqrt(1 / Math.max(diskRadius, 1)) * intensity * 12;
+              const orbitalAngle = Math.atan2(dy, dx) + Math.PI / 2; // Perpendicular to radius
+              
+              // Add orbital motion - stronger horizontal movement
+              px += Math.cos(orbitalAngle) * orbitalSpeed;
+              py += Math.sin(orbitalAngle) * orbitalSpeed * 0.2; // Much flatter disk
+              
+              // Gradual inward spiral
+              const spiralForce = intensity * intensity * 6;
+              px -= Math.cos(angleToCenter) * spiralForce;
+              py -= Math.sin(angleToCenter) * spiralForce * 0.3; // Less vertical movement
+              
+              // Event horizon (dark center)
+              const eventHorizonRadius = data.area * 0.25;
+              if (mouseDistance < eventHorizonRadius) {
+                // Complete darkness at event horizon
+                colorChange.setHSL(0.0, 0.0, 0.0);
+                colors.setXYZ(i, colorChange.r, colorChange.g, colorChange.b);
+                size.array[i] = data.particleSize * 0.05;
+                
+                // Strong inward pull
+                px -= Math.cos(angleToCenter) * intensity * 80;
+                py -= Math.sin(angleToCenter) * intensity * 20;
+              } else {
+                // Accretion disk - temperature gradient from center outward
+                const diskIntensity = 1 - (mouseDistance / blackHoleRadius);
+                const temperature = diskIntensity * diskIntensity;
+                
+                // Yellow center to red outer ring
+                let hue, saturation, lightness;
+                if (temperature > 0.7) {
+                  // Center - bright yellow
+                  hue = 0.15; // Yellow hue
+                  saturation = 1.0;
+                  lightness = 0.9;
+                } else if (temperature > 0.5) {
+                  // Inner ring - yellow-orange
+                  hue = 0.12; // Yellow-orange
+                  saturation = 1.0;
+                  lightness = 0.8;
+                } else if (temperature > 0.3) {
+                  // Middle ring - orange
+                  hue = 0.08; // Orange
+                  saturation = 1.0;
+                  lightness = 0.7;
+                } else if (temperature > 0.1) {
+                  // Outer ring - orange-red
+                  hue = 0.04; // Orange-red
+                  saturation = 1.0;
+                  lightness = 0.6;
+                } else {
+                  // Outermost ring - bright red
+                  hue = 0.0; // Pure red
+                  saturation = 1.0;
+                  lightness = 0.5;
+                }
+                
+                colorChange.setHSL(hue, saturation, lightness);
+                colors.setXYZ(i, colorChange.r, colorChange.g, colorChange.b);
+                size.array[i] = data.particleSize * (0.3 + temperature * 2.5);
+              }
+              
+              // Gravitational lensing effect - bend light around black hole
+              const lensingRadius = data.area * 1.2;
+              if (mouseDistance < lensingRadius && mouseDistance > eventHorizonRadius) {
+                const lensingStrength = (lensingRadius - mouseDistance) / lensingRadius;
+                const bendAngle = lensingStrength * 0.8;
+                
+                // Bend particle path around the black hole
+                px += Math.cos(angleToCenter + bendAngle) * lensingStrength * 8;
+                py += Math.sin(angleToCenter + bendAngle) * lensingStrength * 3;
+              }
+            } else {
+              // Particles outside disk plane - create the "shadow" effect
+              if (mouseDistance < data.area * 1.5) {
+                // Dim particles that are behind the black hole
+                const shadowIntensity = 1 - (mouseDistance / (data.area * 1.5));
+                colorChange.setHSL(0.0, 0.0, 0.1 * shadowIntensity);
+                colors.setXYZ(i, colorChange.r, colorChange.g, colorChange.b);
+                size.array[i] = data.particleSize * (0.1 + shadowIntensity * 0.2);
+                
+                // Minimal gravitational effect
+                const weakPull = intensity * 1;
+                px -= Math.cos(angleToCenter) * weakPull;
+                py -= Math.sin(angleToCenter) * weakPull;
+              }
+            }
           }
         }
 
         colors.needsUpdate = true;
         size.needsUpdate = true;
 
-        
-        px += (initX - px) * data.ease;
-        py += (initY - py) * data.ease;
-        pz += (initZ - pz) * data.ease;
+        // Enhanced return animation with bounce
+        const returnSpeed = data.ease * (1 + Math.abs(px - initX) * 0.01);
+        px += (initX - px) * returnSpeed;
+        py += (initY - py) * returnSpeed;
+        pz += (initZ - pz) * returnSpeed * 2;
+
         pos.setXYZ(i, px, py, pz);
         pos.needsUpdate = true;
       }
@@ -330,7 +481,7 @@ function VideoParticleEffect({ videoRef, videoSize }) {
   const mouse = useRef({ x: -9999, y: -9999, isDown: false });
   const { size: viewportSize } = useThree();
 
-  
+
   const screenWidth = window.innerWidth;
   const isMobile = screenWidth < 768;
   const isTablet = screenWidth >= 768 && screenWidth < 1024;
@@ -371,16 +522,16 @@ function VideoParticleEffect({ videoRef, videoSize }) {
 
     const initialColor = new THREE.Color().setHSL(0.5, 1, 1);
 
-    
+
     let scale;
     if (isSmallMobile) {
-      scale = 0.15; 
+      scale = 0.15;
     } else if (isMobile) {
-      scale = 0.18; 
+      scale = 0.18;
     } else if (isTablet) {
-      scale = 0.2; 
+      scale = 0.2;
     } else {
-      scale = 0.25; 
+      scale = 0.25;
     }
     const halfW = cols / 2;
     const halfH = rows / 2;
@@ -423,13 +574,13 @@ function VideoParticleEffect({ videoRef, videoSize }) {
     const handleTouchStart = () => { mouse.current.isDown = true; };
     const handleTouchEnd = () => { mouse.current.isDown = false; };
 
-    
+
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseleave', handleMouseLeave);
     window.addEventListener('mousedown', handleMouseDown);
     window.addEventListener('mouseup', handleMouseUp);
 
-    
+
     window.addEventListener('touchmove', handleTouchMove, { passive: true });
     window.addEventListener('touchstart', handleTouchStart, { passive: true });
     window.addEventListener('touchend', handleTouchEnd, { passive: true });
@@ -458,7 +609,7 @@ function VideoParticleEffect({ videoRef, videoSize }) {
     const sizes = pointsRef.current.geometry.attributes.size.array;
     const colors = pointsRef.current.geometry.attributes.customColor.array;
 
-    
+
     const mouseScale = isMobile ? 30 : 50;
     const worldMouse = new THREE.Vector3(
       mouse.current.x * mouseScale,
@@ -489,22 +640,116 @@ function VideoParticleEffect({ videoRef, videoSize }) {
       diff.subVectors(particlePos, worldMouse);
       const dist = diff.length();
 
-      
-      const hoverDistance = isMobile ? 8 : 10;
-      const clickDistance = isMobile ? 12 : 15;
-      const force = isMobile ? 0.3 : 0.5;
+
+      const hoverDistance = isMobile ? 12 : 15;
+      const clickDistance = isMobile ? 18 : 25;
+      const force = isMobile ? 0.8 : 1.2;
 
       if (dist < hoverDistance) {
-        const forceAmount = (hoverDistance - dist) / hoverDistance * force;
-        velocities[i3] += diff.x / dist * forceAmount;
-        velocities[i3 + 1] += diff.y / dist * forceAmount;
-        COLOR_HOVER.toArray(colors, i3);
+        const intensity = 1 - (dist / hoverDistance);
+        const forceAmount = intensity * intensity * force;
+
+        // Enhanced repulsion with rotation
+        const angle = Math.atan2(diff.y, diff.x) + Math.sin(time * 3) * 0.5;
+        velocities[i3] += Math.cos(angle) * forceAmount;
+        velocities[i3 + 1] += Math.sin(angle) * forceAmount;
+
+        // Dynamic hover colors
+        const hoverHue = (0.15 + Math.sin(time * 2 + i * 0.01) * 0.1) % 1;
+        animColor.setHSL(hoverHue, 1.0, 0.6 + intensity * 0.4);
+        animColor.toArray(colors, i3);
+
+        // Dramatic size increase
+        sizes[i] = PARTICLE_SIZE * (1 + intensity * 3);
       }
 
       if (mouse.current.isDown && dist < clickDistance) {
-        const animHue = (0.5 + Math.sin(time * 5)) % 1;
-        animColor.setHSL(animHue, 1, 0.5);
-        animColor.toArray(colors, i3);
+        const intensity = 1 - (dist / clickDistance);
+        
+        // Realistic accretion disk physics
+        const angleToCenter = Math.atan2(-diff.y, -diff.x);
+        const diskHeight = Math.abs(diff.y);
+        const diskRadius = Math.abs(diff.x);
+        
+        // Check if particle is in the accretion disk plane
+        const diskThickness = clickDistance * 0.4;
+        const inDiskPlane = diskHeight < diskThickness;
+        
+        if (inDiskPlane) {
+          // Keplerian orbital motion
+          const orbitalSpeed = Math.sqrt(1 / Math.max(diskRadius, 1)) * intensity * 6;
+          const orbitalAngle = angleToCenter + Math.PI / 2;
+          
+          // Add orbital velocity
+          velocities[i3] += Math.cos(orbitalAngle) * orbitalSpeed;
+          velocities[i3 + 1] += Math.sin(orbitalAngle) * orbitalSpeed * 0.25; // Flatten disk
+          
+          // Inward spiral
+          const spiralForce = intensity * intensity * 4;
+          velocities[i3] += Math.cos(angleToCenter) * spiralForce;
+          velocities[i3 + 1] += Math.sin(angleToCenter) * spiralForce * 0.3;
+          
+          // Event horizon
+          const eventHorizonDistance = clickDistance * 0.2;
+          if (dist < eventHorizonDistance) {
+            // Complete darkness
+            animColor.setHSL(0.0, 0.0, 0.0);
+            animColor.toArray(colors, i3);
+            sizes[i] = PARTICLE_SIZE * 0.1;
+            
+            // Extreme pull
+            velocities[i3] += Math.cos(angleToCenter) * intensity * 25;
+            velocities[i3 + 1] += Math.sin(angleToCenter) * intensity * 8;
+          } else {
+            // Temperature-based coloring
+            const temperature = intensity * intensity;
+            
+            let hue, saturation, lightness;
+            if (temperature > 0.8) {
+              // White hot
+              hue = 0.15;
+              saturation = 0.2;
+              lightness = 0.95;
+            } else if (temperature > 0.5) {
+              // Yellow hot
+              hue = 0.08;
+              saturation = 0.9;
+              lightness = 0.8;
+            } else if (temperature > 0.2) {
+              // Orange
+              hue = 0.05;
+              saturation = 1.0;
+              lightness = 0.6;
+            } else {
+              // Red
+              hue = 0.0;
+              saturation = 1.0;
+              lightness = 0.4;
+            }
+            
+            animColor.setHSL(hue, saturation, lightness);
+            animColor.toArray(colors, i3);
+            sizes[i] = PARTICLE_SIZE * (0.5 + temperature * 3);
+          }
+          
+          // Gravitational lensing
+          const lensingRadius = clickDistance * 0.8;
+          if (dist < lensingRadius && dist > eventHorizonDistance) {
+            const lensingStrength = (lensingRadius - dist) / lensingRadius;
+            const bendAngle = lensingStrength * 0.6;
+            
+            velocities[i3] += Math.cos(angleToCenter + bendAngle) * lensingStrength * 3;
+            velocities[i3 + 1] += Math.sin(angleToCenter + bendAngle) * lensingStrength * 1;
+          }
+        } else {
+          // Outside disk plane - shadow effect
+          if (dist < clickDistance * 0.7) {
+            const shadowIntensity = 1 - (dist / (clickDistance * 0.7));
+            animColor.setHSL(0.0, 0.0, 0.1 * shadowIntensity);
+            animColor.toArray(colors, i3);
+            sizes[i] = PARTICLE_SIZE * (0.2 + shadowIntensity * 0.3);
+          }
+        }
       }
 
       velocities[i3] *= 0.85;
@@ -553,13 +798,13 @@ export default function Animation0() {
   const [isCustomVideo, setIsCustomVideo] = useState(false);
   const [currentVideoUrl, setCurrentVideoUrl] = useState(null);
 
-  
+
   const screenWidth = window.innerWidth;
   const isMobile = screenWidth < 768;
   const isSmallMobile = screenWidth < 480;
 
   useEffect(() => {
-    
+
     const fontLoader = new FontLoader();
     const textureLoader = new THREE.TextureLoader();
 
@@ -575,7 +820,7 @@ export default function Animation0() {
       (err) => console.log('An error happened during font loading', err)
     );
 
-    
+
     loadVideo('/assets/rickroll.mp4');
   }, []);
 
@@ -593,7 +838,7 @@ export default function Animation0() {
       console.error('Video error:', e);
     };
 
-    
+
     video.removeEventListener('loadedmetadata', handleLoadedMetadata);
     video.removeEventListener('error', handleError);
 
@@ -611,19 +856,19 @@ export default function Animation0() {
     setShowStartScreen(false);
 
     try {
-      
+
       if (video.readyState >= 2) {
         await video.play();
         console.log('Video started playing successfully');
       } else {
-        
+
         video.addEventListener('canplay', async () => {
           try {
             await video.play();
             console.log('Video started playing after canplay event');
           } catch (err) {
             console.error('Play failed after canplay:', err);
-            
+
             video.muted = true;
             await video.play();
             console.log('Video started playing muted as fallback');
@@ -633,7 +878,7 @@ export default function Animation0() {
     } catch (err) {
       console.error('Play failed:', err);
       try {
-        
+
         video.muted = true;
         await video.play();
         console.log('Video started playing muted as fallback');
@@ -647,27 +892,27 @@ export default function Animation0() {
     const file = event.target.files[0];
     if (!file) return;
 
-    
+
     if (!file.type.startsWith('video/')) {
       alert('Please select a valid video file (MP4, WebM, etc.)');
       return;
     }
 
-    
+
     if (currentVideoUrl) {
       URL.revokeObjectURL(currentVideoUrl);
     }
 
-    
+
     const url = URL.createObjectURL(file);
     setCurrentVideoUrl(url);
     setIsCustomVideo(true);
 
-    
+
     loadVideo(url);
     setShowStartScreen(false);
 
-    
+
     setTimeout(async () => {
       const video = videoRef.current;
       if (video) {
@@ -676,7 +921,7 @@ export default function Animation0() {
           console.log('Custom video started playing');
         } catch (err) {
           console.error('Custom video play failed:', err);
-          
+
           try {
             video.muted = true;
             await video.play();
@@ -690,7 +935,7 @@ export default function Animation0() {
   };
 
   const resetToRickroll = () => {
-    
+
     if (currentVideoUrl) {
       URL.revokeObjectURL(currentVideoUrl);
       setCurrentVideoUrl(null);
@@ -700,7 +945,7 @@ export default function Animation0() {
     setShowStartScreen(true);
     loadVideo('/assets/rickroll.mp4');
 
-    
+
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
